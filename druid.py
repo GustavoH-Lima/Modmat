@@ -1,6 +1,6 @@
 import numpy as np
 import math as m
-from numpy.linalg import eig
+from numpy.linalg import eig, inv
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -47,7 +47,7 @@ def calculate_inertia_tensor():
         [(i1-i2)*m.sin(delta)*m.cos(delta), i2*m.cos(delta)**2+i1*m.sin(delta)**2, 0],
         [0, 0, i3]
     ])
-    return I
+    return I, inv(I)
 
-I = calculate_inertia_tensor()
+I, R = calculate_inertia_tensor()
 print(I)
