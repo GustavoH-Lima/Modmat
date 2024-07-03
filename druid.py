@@ -51,9 +51,10 @@ def calculate_inertia_tensor():
 
 def calculate_a_vec():
     g1, g2, g3 = gamma
-    a1 = -b1**2*g1/m.sqrt(b1**2*g1**2+b2**2*g2**2+b3**2*g3**2)
-    a2 = -b2**2*g2/m.sqrt(b1**2*g1**2+b2**2*g2**2+b3**2*g3**2)
-    a3 = -b3**2*g3/m.sqrt(b1**2*g1**2+b2**2*g2**2+b3**2*g3**2)+(3/8)*me*b3/(me+2*mp)
+    div = m.sqrt(b1**2*g1**2+b2**2*g2**2+b3**2*g3**2)
+    a1 = -b1**2*g1/div
+    a2 = -b2**2*g2/div
+    a3 = -b3**2*g3/div+(3/8)*me*b3/(me+2*mp)
     return np.array([a1, a2, a3])
 
 I, R = calculate_inertia_tensor()
