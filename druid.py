@@ -1,17 +1,24 @@
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
-# Create a new figure
-plt.figure()
+# Druid stone parameters
+# halv-ellipsoid shape
+b1 = 7.5 #cm
+b2 = 2
+b3 = 1.5
+# mass of ellipsoid and p masses
+me = 18 #grams
+mp = 3
 
-# Plot a simple line
-plt.plot([0, 1, 2, 3, 4], [0, 1, 4, 9, 16])
+g = 981 #gravity cm/s^2
 
-# Add a title
-plt.title('Hello, World!')
+r0 = [6, 6/5] #p masses positions
 
-# Add labels to the axes
-plt.xlabel('X Axis')
-plt.ylabel('Y Axis')
+# Initial conditions
+gamma = [0, 0, 1]   # initial angle (radians)
+omega = [0, 0, 0.2]   # initial angular velocity (rad/s)
+time_step = 0.01  # time step for the simulation
 
-# Show the plot
-plt.show()
+# Simulation duration
+simulation_time = 10.0
