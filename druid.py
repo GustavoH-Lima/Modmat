@@ -20,8 +20,8 @@ x0 = r0[0]
 y0 = r0[1]
 
 # Initial conditions
-gamma = [0, 0, 1]   # initial angle (radians)
-omega = [0, 0, 0.2]   # initial angular velocity (rad/s)
+gamma = np.array([0, 0, 1])
+omega = np.array([0, 0, 0.2]) #initial angular velocity (rad/s)
 time_step = 0.01  # time step for the simulation
 
 # Simulation duration
@@ -49,5 +49,13 @@ def calculate_inertia_tensor():
     ])
     return I, inv(I)
 
+def calculate_a_vec():
+    g1, g2, g3 = gamma
+    a1 = -b1**2*g1/m.sqrt(b1**2*g1**2+b2**2*g2**2+b3**2*g3**2)
+    a2 = -b2**2*g2/m.sqrt(b1**2*g1**2+b2**2*g2**2+b3**2*g3**2)
+    a3 = -b3**2*g3/m.sqrt(b1**2*g1**2+b2**2*g2**2+b3**2*g3**2)+(3/8)*me*b3/(me+2*mp)
+    return np.array([a1, a2, a3])
+
 I, R = calculate_inertia_tensor()
-print(I)
+a_vec = calculate_a_vec()
+print(a_vec)
