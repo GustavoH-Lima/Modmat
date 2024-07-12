@@ -20,13 +20,22 @@ r0 = [6, 6/5] #p masses positions: r0 and -r0
 x0 = r0[0]
 y0 = r0[1]
 animation_xyz0 = np.array([r0[0], r0[1], 0])
+
+### Simulation Variables
 # Initial conditions
+# FIXED FRAME VECTORS
 gamma = np.array([0, 0, 1])
-omega = np.array([0, 0, 0.2]) #initial angular velocity (rad/s)
+alpha = np.array([1, 0, 0]) #auxiliar vectors to build animation's rotation matrix
+beta = np.array([0, 1, 0])
+#angular velocity omega
+omega = np.array([0, 3, 10]) #initial angular velocity (rad/s)
+# M angular momentum in fixed frame
+M = np.array([0,0,0])
+
 time_step = 0.01  # time step for the simulation
 
 # Simulation duration
-simulation_time = 10.0
+simulation_time = 20 #amount of frames
 
 def calculate_inertia_tensor():
     i_11 = (me/5)*(b2**2+b3**2)+2*mp*y0**2-(9/64)*(me**2*b3**2/(me+2*mp))
@@ -58,7 +67,28 @@ def calculate_a_vec():
     a3 = -b3**2*g3/div+(3/8)*me*b3/(me+2*mp)
     return np.array([a1, a2, a3])
 
-    
+def calculate_rotation_matrix():
+    Rot = np.column_stack((alpha, beta, gamma))
+    return Rot
+
+def update_fixed_frame_vectors():
+    #apply d gamma/dt = omega X gamma
+    #and renormalize
+    global gamma
+    global alpha
+    global beta
+    dgamma = time_step*(np.cross(omega, gamma))
+    dalpha = time_step*(np.cross(omega, alpha))
+    dbeta = time_step*(np.cross(omega, beta))
+    gamma = gamma+dgamma
+    alpha = alpha+dalpha
+    beta = beta+dbeta
+    gamma = gamma*(1/np.linalg.norm(gamma))
+    alpha = alpha*(1/np.linalg.norm(alpha))
+    beta = beta*(1/np.linalg.norm(beta))
+    #reorthogonalize
+    beta = np.cross(gamma, alpha)
+    alpha = np.cross(beta, gamma)
 
 I, R = calculate_inertia_tensor()
 a_vec = calculate_a_vec()
@@ -88,22 +118,18 @@ ax = fig.add_subplot(111, projection='3d')
 
 def rotate_ellipsoid(theta):
     # Matriz de rotação em torno do eixo z
-    R = np.array([
-        [np.cos(theta), -np.sin(theta), 0],
-        [np.sin(theta), np.cos(theta), 0],
-        [0, 0, 1]
-    ])
+    Rot = calculate_rotation_matrix()
 
     # Aplicar rotação
     xyz = np.vstack([x.flatten(), y.flatten(), z.flatten()])
-    xyz_rotated = R @ xyz
+    xyz_rotated = Rot @ xyz
     x_rot = xyz_rotated[0, :].reshape(x.shape)
     y_rot = xyz_rotated[1, :].reshape(y.shape)
     z_rot = xyz_rotated[2, :].reshape(z.shape)
 
     # Aplicar rotação na posição das massas auxiliares p
     global animation_xyz0
-    animation_xyz0 = R @ np.array([r0[0],r0[1], 0])
+    animation_xyz0 = Rot @ np.array([r0[0],r0[1], 0])
     
     return x_rot, y_rot, z_rot
 
@@ -112,33 +138,41 @@ def rotate_ellipsoid(theta):
 def update(frame):
     ax.clear()
     # Remover os indicadores dos números nos eixos
-    ax.set_box_aspect([b1, b1, b3])
+    ax.set_box_aspect([b1, b1, b1])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     #Remover marcação dos eixos
     # ax.set_yticks([-2,-0.5,0.5,2])
-    ax.set_zticks([-1,0,1])
+    #ax.set_zticks([-1,0,1])
     ax.axes.set_xlim3d(left=-b1, right=b1) 
     ax.axes.set_ylim3d(bottom=-b1, top=b1) 
-    ax.axes.set_zlim3d(bottom=-b3, top=0) 
+    ax.axes.set_zlim3d(bottom=-b1, top=b1) 
 
-    new_ellipse = rotate_ellipsoid(frame*0.02)
+    #Update simulation
+    update_fixed_frame_vectors()
+
+    #recalculate rotation matrix
+    calculate_rotation_matrix()
+
+    new_ellipse = rotate_ellipsoid(frame*time_step)
 
     ax.scatter(*cm,color='y')
-    print(animation_xyz0)
     ax.scatter(*animation_xyz0, color='k')
     ax.scatter(*(-1*animation_xyz0), color='k')
-    ax.quiver(0,0,0,[b1,0,0],[0,b2,0],[0,0,b3], length=3, normalize=True, arrow_length_ratio=0.21,color='r')
-    ax.quiver(0,0,0,I[0],I[1],I[2], length=2, normalize=True, arrow_length_ratio=0.21,color='g')
+    #ax.quiver(0,0,0,[b1,0,0],[0,b2,0],[0,0,b3], length=3, normalize=True, arrow_length_ratio=0.21,color='r')
+    #ax.quiver(0,0,0,I[0],I[1],I[2], length=2, normalize=True, arrow_length_ratio=0.21,color='g')
+    ax.quiver(0,0,0,*gamma, length=2, arrow_length_ratio=0.21, color='pink')
+    ax.quiver(0,0,0,*alpha, length=2, arrow_length_ratio=0.21, color='g')
+    ax.quiver(0,0,0,*beta, length=2, arrow_length_ratio=0.21, color='r')
 
-    fig.suptitle("Semi elipsóide, seu centro de massa e eixos inerciais deslocados")
+    fig.suptitle("Rattleback!")
     surf = ax.plot_surface(*new_ellipse, color='b', alpha=0.6)
     return surf,
 
 #Criar animação
-ani = animation.FuncAnimation(fig, update, frames=20, interval=50, blit=False)
+ani = animation.FuncAnimation(fig, update, frames=20, interval=1, blit=False)
 writer = animation.PillowWriter(fps=20)
 ani.save("ani.gif", writer=writer)
-# Mostrar a figura
+
 plt.show()
