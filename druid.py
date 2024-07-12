@@ -4,6 +4,7 @@ from numpy.linalg import eig, inv
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.integrate import solve_ivp
 
 # Druid stone parameters
 # halv-ellipsoid shape
@@ -13,6 +14,7 @@ b3 = 1.5
 # mass of ellipsoid and p masses
 me = 18 #grams
 mp = 3
+mass = me + 2*mp
 
 g = 981 #gravity cm/s^2
 
@@ -24,11 +26,11 @@ animation_xyz0 = np.array([r0[0], r0[1], 0])
 ### Simulation Variables
 # Initial conditions
 # FIXED FRAME VECTORS
-gamma = np.array([0, 0, 1])
+gamma = np.array([0, 0.01, 0.99])
 alpha = np.array([1, 0, 0]) #auxiliar vectors to build animation's rotation matrix
 beta = np.array([0, 1, 0])
 #angular velocity omega
-omega = np.array([0, 3, 10]) #initial angular velocity (rad/s)
+omega = np.array([0, 0, 10]) #initial angular velocity (rad/s)
 # M angular momentum in fixed frame
 M = np.array([0,0,0])
 
@@ -67,6 +69,8 @@ def calculate_a_vec():
     a3 = -b3**2*g3/div+(3/8)*me*b3/(me+2*mp)
     return np.array([a1, a2, a3])
 
+a = calculate_a_vec()
+
 def calculate_rotation_matrix():
     Rot = np.column_stack((alpha, beta, gamma))
     return Rot
@@ -91,9 +95,68 @@ def update_fixed_frame_vectors():
     alpha = np.cross(beta, gamma)
 
 I, R = calculate_inertia_tensor()
-a_vec = calculate_a_vec()
 
 
+def calculate_M():
+    global M
+    M = I @ omega + np.cross(mass*a, np.cross(omega,a))
+
+# Define the differential equations
+def equations(t, y, omega, a):
+    M = y[:3]
+    gamma = y[3:]
+    
+    # Reshape M and gamma to be vectors
+    M = M.reshape((3,))
+    gamma = gamma.reshape((3,))
+    
+    # Compute the derivatives
+    # should be 
+    #     dMdt = np.cross(M, omega) + mass * np.cross(dadt, np.cross(omega, a)) + mass * g * np.cross(a, gamma)
+    #                                                   ^~~~how to get da/dt ?
+    dMdt = np.cross(M, omega) + mass * np.cross(a, np.cross(omega, a)) + mass * g * np.cross(a, gamma)
+    dgamma_dt = np.cross(omega, gamma)
+    
+    return np.concatenate([dMdt, dgamma_dt])
+
+gamma0 = gamma
+M0 = M
+#initial state
+y0 = np.concatenate([M0, gamma0])
+
+# Time span for the solution
+t_span = (0, 10)
+t_eval = np.linspace(0, 10, 1000)
+#solve
+solution = solve_ivp(equations, t_span, y0, args=(omega, a), t_eval=t_eval, method='RK45')
+
+
+# Extract the solutions
+M_solution = solution.y[:3].T
+gamma_solution = solution.y[3:].T
+
+# Plot the solutions
+plt.figure(figsize=(12, 6))
+
+plt.subplot(2, 1, 1)
+plt.plot(solution.t, M_solution)
+plt.title('M(t) Components')
+plt.xlabel('Time')
+plt.ylabel('M')
+plt.legend(['M_x', 'M_y', 'M_z'])
+
+plt.subplot(2, 1, 2)
+plt.plot(solution.t, gamma_solution)
+plt.title('γ(t) Components')
+plt.xlabel('Time')
+plt.ylabel('γ')
+plt.legend(['γ_x', 'γ_y', 'γ_z'])
+
+plt.tight_layout()
+plt.show()
+
+
+## ANIMAÇÃO -------------------
 
 # Criação dos pontos para o elipsoide
 u = np.linspace(0, 2 * np.pi, 100)
@@ -103,14 +166,11 @@ x = b1 * np.outer(np.cos(u), np.sin(v))
 y = b2 * np.outer(np.sin(u), np.sin(v))
 z = b3 * np.outer(np.ones_like(u), np.cos(v))
 
-
 # Filtrar para apenas a metade inferior do elipsoide
 z_mask = z > 0
 x[z_mask] = np.nan
 y[z_mask] = np.nan
 z[z_mask] = np.nan
-
-
 
 cm = [0,0,-(3/8)*(me*b3)/(2*mp*me)]
 fig = plt.figure(figsize=(10, 7))
@@ -171,8 +231,8 @@ def update(frame):
     return surf,
 
 #Criar animação
-ani = animation.FuncAnimation(fig, update, frames=20, interval=1, blit=False)
-writer = animation.PillowWriter(fps=20)
-ani.save("ani.gif", writer=writer)
+#ani = animation.FuncAnimation(fig, update, frames=20, interval=1, blit=False)
+#writer = animation.PillowWriter(fps=20)
+#ani.save("ani.gif", writer=writer)
 
-plt.show()
+#plt.show()
