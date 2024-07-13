@@ -13,7 +13,7 @@ b2 = 2
 b3 = 1.5
 b = np.array([b1, b2, b3])
 # mass of ellipsoid and p masses
-me = 30 #grams
+me = 18 #grams
 mp = 6
 mass = me + 2*mp
 
@@ -31,14 +31,10 @@ gamma = np.array([0, 1/1000, 3*m.sqrt(111111)/1000])
 alpha = np.array([1, 0, 0]) #auxiliar vectors to build animation's rotation matrix
 beta = np.array([0, 1, 0])
 #angular velocity omega
-omega = np.array([0, 0, 10]) #initial angular velocity (rad/s)
+omega = np.array([0, 0, -20]) #initial angular velocity (rad/s)
+omega = -omega
 # M angular momentum in fixed frame
 M = np.array([0,0,0])
-
-time_step = 0.01  # time step for the simulation
-
-# Simulation duration
-simulation_time = 20 #amount of frames
 
 def calculate_inertia_tensor():
     i_11 = (me/5)*(b2**2+b3**2)+2*mp*y0**2-(9/64)*(me**2*b3**2/(me+2*mp))
@@ -73,7 +69,7 @@ def calculate_a_vec(gamma):
 a = calculate_a_vec(gamma)
 
 def calculate_rotation_matrix(alpha, beta, gamma):
-    Rot = np.column_stack((alpha, beta, gamma))
+    Rot =  np.column_stack((alpha, beta, gamma))
     return Rot
 
 def update_fixed_frame_vectors(gamma, alpha, beta):
@@ -146,10 +142,10 @@ M0 = calculate_M(a0, omega)
 y0 = np.concatenate([M0, gamma0, alpha0, beta0, a0])
 
 # Time span for the solution
-total_time = 60*3
+total_time = 30
 fps = 20
 total_frames = total_time*fps
-detail = 100000
+detail = 1000000
 t_span = (0, total_time)
 t_eval = np.linspace(0, total_time, detail)
 #solve
@@ -230,7 +226,7 @@ def rotate_ellipsoid(Rot):
 def update(frame):
     ax.clear()
     # Remover os indicadores dos números nos eixos
-    ax.set_box_aspect([b1, b1, b1])
+    ax.set_box_aspect([b1, b1, b1/2])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -239,7 +235,7 @@ def update(frame):
     #ax.set_zticks([-1,0,1])
     ax.axes.set_xlim3d(left=-b1, right=b1) 
     ax.axes.set_ylim3d(bottom=-b1, top=b1) 
-    ax.axes.set_zlim3d(bottom=-b1, top=b1) 
+    ax.axes.set_zlim3d(bottom=-b1/2, top=b1/2) 
 
     #Update simulation
     #update_fixed_frame_vectors()
@@ -252,18 +248,18 @@ def update(frame):
     #ax.scatter(*cm,color='y')
     ax.scatter(*animation_xyz0, color='k')
     ax.scatter(*(-1*animation_xyz0), color='k')
-    ax.scatter(*a_solution[idx], color='y')
-    ax.quiver(0,0,0,*gamma_solution[idx], length=2, arrow_length_ratio=0.21, color='pink')
-    ax.quiver(0,0,0,*alpha_solution[idx], length=2, arrow_length_ratio=0.21, color='g')
-    ax.quiver(0,0,0,*beta_solution[idx], length=2, arrow_length_ratio=0.21, color='r')
+    ax.scatter(*(a_solution[idx]), color='y')
+    #ax.quiver(0,0,0,*(Rot@gamma_solution[idx]), length=2, arrow_length_ratio=0.21, color='pink')
+    #ax.quiver(0,0,0,*(Rot@alpha_solution[idx]), length=2, arrow_length_ratio=0.21, color='g')
+    #ax.quiver(0,0,0,*(Rot@beta_solution[idx]), length=2, arrow_length_ratio=0.21, color='r')
 
-    fig.suptitle(frame)
+    fig.suptitle("Druid stone!")
     surf = ax.plot_surface(*new_ellipse, color='b', alpha=0.6)
     return surf,
 
 #Criar animação
 ani = animation.FuncAnimation(fig, update, frames=total_frames, interval=1, blit=False)
-#writer = animation.PillowWriter(fps=20)
-#ani.save("ani.gif", writer=writer)
+writer = animation.PillowWriter(fps=20)
+ani.save("ani.gif", writer=writer)
 
-plt.show()
+#plt.show()
