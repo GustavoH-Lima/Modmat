@@ -13,8 +13,8 @@ b2 = 2
 b3 = 1.5
 b = np.array([b1, b2, b3])
 # mass of ellipsoid and p masses
-me = 18 #grams
-mp = 3
+me = 30 #grams
+mp = 6
 mass = me + 2*mp
 
 g = 981 #gravity cm/s^2
@@ -31,7 +31,7 @@ gamma = np.array([0, 1/1000, 3*m.sqrt(111111)/1000])
 alpha = np.array([1, 0, 0]) #auxiliar vectors to build animation's rotation matrix
 beta = np.array([0, 1, 0])
 #angular velocity omega
-omega = np.array([0, 0, -100]) #initial angular velocity (rad/s)
+omega = np.array([0, 0, 10]) #initial angular velocity (rad/s)
 # M angular momentum in fixed frame
 M = np.array([0,0,0])
 
@@ -76,24 +76,25 @@ def calculate_rotation_matrix(alpha, beta, gamma):
     Rot = np.column_stack((alpha, beta, gamma))
     return Rot
 
-def update_fixed_frame_vectors():
+def update_fixed_frame_vectors(gamma, alpha, beta):
     #apply d gamma/dt = omega X gamma
     #and renormalize
-    global gamma
-    global alpha
-    global beta
-    dgamma = time_step*(np.cross(omega, gamma))
+    """ dgamma = time_step*(np.cross(omega, gamma))
     dalpha = time_step*(np.cross(omega, alpha))
     dbeta = time_step*(np.cross(omega, beta))
     gamma = gamma+dgamma
     alpha = alpha+dalpha
-    beta = beta+dbeta
+    beta = beta+dbeta """
     gamma = gamma*(1/np.linalg.norm(gamma))
     alpha = alpha*(1/np.linalg.norm(alpha))
     beta = beta*(1/np.linalg.norm(beta))
     #reorthogonalize
     beta = np.cross(gamma, alpha)
     alpha = np.cross(beta, gamma)
+    return gamma, alpha, beta
+
+gamma, alpha, beta = update_fixed_frame_vectors(gamma, alpha, beta)
+
 
 I, R = calculate_inertia_tensor()
 
@@ -115,6 +116,7 @@ def equations(t, y, omega, mass):
     alpha = alpha.reshape((3,))
     beta = beta.reshape((3,))
     a = a.reshape((3,))
+    #gamma, alpha, beta = update_fixed_frame_vectors(gamma, alpha, beta)
 
     #calculate omega value
     # w = J^-1 M
@@ -129,9 +131,9 @@ def equations(t, y, omega, mass):
     dgamma_dt = np.cross(omega, gamma)
     dalpha_dt = np.cross(omega, alpha)
     dbeta_dt = np.cross(omega, beta)
-    #dadt = b*b*(dgammadt/norm(b*gamma) + gamma*(-1/(norm(b*gamma)**2) * gamma dot b*b / norm(b*gamma) )
-    dadt = b*b*(dgamma_dt/np.linalg.norm(b*gamma)) + gamma*( (-1/(np.linalg.norm(b*gamma))**2)*(np.dot(gamma, b*b))/np.linalg.norm(b*gamma) )
-    
+    #dadt = b*b*(dgamma_dt/np.linalg.norm(b*gamma)) + gamma*( (-1/(np.linalg.norm(b*gamma))**2)*(np.dot(gamma, b*b))/np.linalg.norm(b*gamma) )
+    dadt = b*b*(dgamma_dt/np.linalg.norm(b*gamma)) + (b*b*gamma/(np.linalg.norm(b*gamma)**2))*np.dot((b*b*gamma),dgamma_dt)
+
     return np.concatenate([dMdt, dgamma_dt, dalpha_dt, dbeta_dt, dadt])
 
 gamma0 = gamma
@@ -144,10 +146,10 @@ M0 = calculate_M(a0, omega)
 y0 = np.concatenate([M0, gamma0, alpha0, beta0, a0])
 
 # Time span for the solution
-total_time = 20
+total_time = 60*3
 fps = 20
 total_frames = total_time*fps
-detail = 1000
+detail = 100000
 t_span = (0, total_time)
 t_eval = np.linspace(0, total_time, detail)
 #solve
@@ -159,23 +161,31 @@ M_solution = solution.y[:3].T
 gamma_solution = solution.y[3:6].T
 alpha_solution = solution.y[6:9].T
 beta_solution = solution.y[9:12].T
+a_solution = solution.y[12:15].T
 
 # Plot the solutions
 plt.figure(figsize=(12, 6))
 
-plt.subplot(2, 1, 1)
+plt.subplot(3, 1, 1)
 plt.plot(solution.t, M_solution)
 plt.title('M(t) Components')
 plt.xlabel('Time')
 plt.ylabel('M')
 plt.legend(['M_x', 'M_y', 'M_z'])
 
-plt.subplot(2, 1, 2)
+plt.subplot(3, 1, 2)
 plt.plot(solution.t, gamma_solution)
 plt.title('γ(t) Components')
 plt.xlabel('Time')
 plt.ylabel('γ')
 plt.legend(['γ_x', 'γ_y', 'γ_z'])
+
+plt.subplot(3, 1, 3)
+plt.plot(solution.t, alpha_solution)
+plt.title('Alpha(t) Components')
+plt.xlabel('Time')
+plt.ylabel('alpha')
+plt.legend(['alpha_x', 'alpha_y', 'alpha_z'])
 
 plt.tight_layout()
 plt.show()
@@ -233,22 +243,21 @@ def update(frame):
 
     #Update simulation
     #update_fixed_frame_vectors()
-    idx = int(total_frames/frame)
+    idx = int(frame*(detail/total_frames))
     #recalculate rotation matrix
     Rot = calculate_rotation_matrix(alpha_solution[idx], beta_solution[idx], gamma_solution[idx])
 
     new_ellipse = rotate_ellipsoid(Rot)
 
-    ax.scatter(*cm,color='y')
+    #ax.scatter(*cm,color='y')
     ax.scatter(*animation_xyz0, color='k')
     ax.scatter(*(-1*animation_xyz0), color='k')
-    #ax.quiver(0,0,0,[b1,0,0],[0,b2,0],[0,0,b3], length=3, normalize=True, arrow_length_ratio=0.21,color='r')
-    #ax.quiver(0,0,0,I[0],I[1],I[2], length=2, normalize=True, arrow_length_ratio=0.21,color='g')
+    ax.scatter(*a_solution[idx], color='y')
     ax.quiver(0,0,0,*gamma_solution[idx], length=2, arrow_length_ratio=0.21, color='pink')
     ax.quiver(0,0,0,*alpha_solution[idx], length=2, arrow_length_ratio=0.21, color='g')
     ax.quiver(0,0,0,*beta_solution[idx], length=2, arrow_length_ratio=0.21, color='r')
 
-    fig.suptitle("Rattleback!")
+    fig.suptitle(frame)
     surf = ax.plot_surface(*new_ellipse, color='b', alpha=0.6)
     return surf,
 
